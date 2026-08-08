@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clash Damage Reckoner</title>
+<style>
+  :root{
+    --bg:#12130f;
+    --panel:#1b1d16;
+    --panel2:#22251b;
+    --line:#33361f;
+    --ember:#e8a13c;
+    --ember-dim:#8a5f22;
+    --bolt:#d8c948;
+    --quake:#a9713a;
+    --arrow:#7fae63;
+    --fireball:#d1592e;
+    --rocket:#5a8fae;
+    --gauntlet:#b04a3f;
+    --ink:#ede7d3;
+    --ink-dim:#a9a691;
+    --good:#8fbf6a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 20% -10%, #2a2617 0%, transparent 45%),
+      radial-gradient(circle at 90% 0%, #1c2a1a 0%, transparent 40%),
+      var(--bg);
+    color:var(--ink);
+    font-family: 'Iowan Old Style', 'Georgia', serif;
+    padding: 28px 16px 60px;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+
+  header{
+    text-align:center;
+    margin-bottom:28px;
+    padding-bottom:18px;
+    border-bottom: 1px solid var(--line);
+  }
+  header .eyebrow{
+    font-family:'Courier New', monospace;
+    letter-spacing:0.3em;
+    font-size:11px;
+    color:var(--ember);
+    text-transform:uppercase;
+  }
+  header h1{
+    font-family: 'Trajan Pro', 'Cinzel', 'Iowan Old Style', serif;
+    font-size:38px;
+    margin:8px 0 6px;
+    letter-spacing:0.04em;
+    background: linear-gradient(180deg, #f6e2ad, var(--ember) 70%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    text-shadow: 0 2px 24px rgba(232,161,60,0.25);
+  }
+  header p{color:var(--ink-dim); font-size:14.5px; margin:0;}
+
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap:16px;
+    margin-bottom:22px;
+  }
+
+  .card{
+    background: linear-gradient(180deg, var(--panel2), var(--panel));
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px 18px;
+    position:relative;
+    overflow:hidden;
+    transition: border-color .2s ease, transform .15s ease;
+  }
+  .card::before{
+    content:"";
+    position:absolute; left:0; top:0; bottom:0; width:3px;
+    background: var(--accent, var(--ember));
+    opacity:0.85;
+  }
+  .card.disabled{opacity:0.45;}
+  .card h2{
+    margin:0 0 2px;
+    font-size:17px;
+    font-weight:600;
+    letter-spacing:0.02em;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .card .tag{
+    font-family:'Courier New', monospace;
+    font-size:10px;
+    letter-spacing:0.08em;
+    color:var(--ink-dim);
+    text-transform:uppercase;
+  }
+  .card .sub{font-size:12.5px; color:var(--ink-dim); margin-bottom:12px; line-height:1.4;}
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .switch{
+    position:relative; width:40px; height:22px;
+    background:#3a3d2c; border-radius:20px; cursor:pointer;
+    border:1px solid var(--line);
+    flex-shrink:0;
+  }
+  .switch.on{background: var(--accent, var(--ember)); }
+  .switch .knob{
+    position:absolute; top:2px; left:2px; width:16px; height:16px;
+    background:#12130f; border-radius:50%;
+    transition: left .15s ease;
+  }
+  .switch.on .knob{left:20px; background:#fff;}
+
+  .field-row{
+    display:flex; gap:10px; margin-bottom:10px;
+  }
+  .field{flex:1;}
+  .field label{
+    display:block; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.06em; color:var(--ink-dim); margin-bottom:4px;
+  }
+  .field select, .field input[type=number]{
+    width:100%;
+    background:#0f100c;
+    border:1px solid var(--line);
+    color:var(--ink);
+    padding:8px 8px;
+    border-radius:6px;
+    font-family: inherit;
+    font-size:14px;
+  }
+  .field select:focus, .field input:focus{outline:1px solid var(--accent, var(--ember));}
+
+  .stat-line{
+    display:flex; justify-content:space-between;
+    font-size:13px; padding:5px 0;
+    border-top:1px dashed var(--line);
+    color:var(--ink-dim);
+  }
+  .stat-line b{color:var(--ink); font-weight:600;}
+  .stat-line.total{
+    border-top:1px solid var(--line);
+    margin-top:4px; padding-top:8px;
+    color:var(--ink);
+  }
+  .stat-line.total b{ color: var(--accent, var(--ember)); font-size:16px;}
+
+  .note{
+    font-size:11px; color:var(--ink-dim); margin-top:8px;
+    line-height:1.4; font-style:italic;
+  }
+
+  /* summary */
+  .summary{
+    background: linear-gradient(180deg, #1d1f16, #15160f);
+    border:1px solid var(--ember-dim);
+    border-radius:12px;
+    padding:22px 24px;
+    margin-bottom:22px;
+  }
+  .summary h2{
+    margin:0 0 14px;
+    font-size:14px; text-transform:uppercase; letter-spacing:0.12em;
+    color:var(--ember);
+  }
+  .summary-total{
+    display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .summary-total .big{
+    font-size:44px; font-weight:700; color:var(--ink);
+    font-family: 'Trajan Pro','Cinzel', serif;
+  }
+  .summary-total .unit{color:var(--ink-dim); font-size:14px;}
+
+  table.breakdown{width:100%; border-collapse:collapse; font-size:13.5px;}
+  table.breakdown th{
+    text-align:left; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:0.06em; color:var(--ink-dim); font-weight:600;
+    padding:6px 8px; border-bottom:1px solid var(--line);
+  }
+  table.breakdown td{padding:7px 8px; border-bottom:1px solid rgba(51,54,31,0.5);}
+  table.breakdown tr:last-child td{border-bottom:none;}
+  table.breakdown .swatch{
+    display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:7px;
+  }
+  table.breakdown td.num{text-align:right; font-variant-numeric: tabular-nums;}
+
+  .against-box{
+    margin-top:16px; padding-top:14px; border-top:1px solid var(--line);
+  }
+  .against-box .field-row{align-items:flex-end;}
+  .verdict{
+    margin-top:10px; padding:10px 12px; border-radius:8px;
+    font-size:13.5px; background:#0f1a0f; border:1px solid #2c4a2c; color:var(--good);
+  }
+  .verdict.bad{background:#1c1210; border-color:#4a2c2c; color:#c97b6a;}
+
+  footer{
+    text-align:center; color:var(--ink-dim); font-size:11px;
+    margin-top:26px; line-height:1.6;
+  }
+  footer a{color:var(--ember);}
+
+  ::selection{background:var(--ember); color:#12130f;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Attack Planning Tool</div>
+    <h1>The Damage Reckoner</h1>
+    <p>Zap · Quake · Arrow · Fireball · Backpack · Gauntlet — tally your burst before you drop it.</p>
+  </header>
+
+  <div class="grid" id="cardGrid"></div>
+
+  <div class="summary">
+    <h2>Combined Burst</h2>
+    <div class="summary-total">
+      <div class="big" id="grandTotal">0</div>
+      <div class="unit">total flat damage from all active items above (buildings; see per-card notes for troops/heroes/walls)</div>
+    </div>
+    <table class="breakdown">
+      <thead>
+        <tr><th>Item</th><th>Detail</th><th class="num">Subtotal</th></tr>
+      </thead>
+      <tbody id="breakdownBody"></tbody>
+    </table>
+
+    <div class="against-box">
+      <div class="field-row">
+        <div class="field">
+          <label>Check against a target's HP</label>
+          <input type="number" id="targetHP" placeholder="e.g. 4800" min="0">
+        </div>
+      </div>
+      <div class="verdict" id="verdict" style="display:none;"></div>
+    </div>
+  </div>
+
+  <footer>
+    Damage values are approximate community-sourced figures as of mid‑2026 and Supercell rebalances often — all numbers are editable via the level dropdowns, and you should verify big plays in Practice Mode first.<br>
+    "GiantBall" is treated here as the Barbarian King's <b>Giant Gauntlet</b> equipment — let me know if you meant something else.
+  </footer>
+
+</div>
+
+<script>
+/* ---------- DATA ---------- */
+
+// Lightning Spell — flat damage per level (levels 1-13)
+const lightning = {1:150,2:180,3:210,4:240,5:270,6:320,7:400,8:480,9:560,10:600,11:640,12:680,13:720};
+
+// Earthquake Spell — % of target max HP per level (building %), levels 1-8
+const earthquake = {1:14.5,2:17,3:21,4:25,5:29,6:29,7:29,8:29};
+// diminishing returns multiplier for the nth quake dropped on the SAME target
+function quakeFactor(n){ return 1/(2*n-1); } // 1st=1, 2nd=1/3, 3rd=1/5, 4th=1/7...
+
+// Giant Arrow (Archer Queen, Common, levels 1-18) — projectile damage
+const giantArrow = {1:750,2:820,3:890,4:960,5:1030,6:1100,7:1150,8:1200,9:1250,
+  10:1300,11:1400,12:1500,13:1600,14:1700,15:1800,16:1850,17:1900,18:1950};
+
+// Fireball (Grand Warden, Epic, levels 1-27) — total splash damage
+const fireball = {1:1500,2:1500,3:1700,4:1700,5:1800,6:1950,7:1950,8:2050,9:2200,
+  10:2200,11:2350,12:2650,13:2650,14:2750,15:3100,16:3100,17:3250,18:3400,
+  19:3400,20:3500,21:3650,22:3650,23:3750,24:3900,25:3900,26:3950,27:4100};
+
+// Rocket Backpack (Dragon Duke, Epic) — approximate total flame-dash damage,
+// scaled toward the ~2,200 max-level figure reported for its 2026 debut.
+const rocketBackpack = {1:900,2:1000,3:1100,4:1200,5:1300,6:1400,7:1450,8:1500,
+  9:1550,10:1600,11:1650,12:1700,13:1750,14:1800,15:1850,16:1900,17:1950,
+  18:2000,19:2050,20:2100,21:2200};
+
+// Giant Gauntlet (Barbarian King, Epic) — approximate total AoE burst over
+// the ability duration (DPS boost x duration), NOT counting his base hits.
+const giantGauntlet = {1:204,2:230,3:256,4:282,5:308,6:340,7:372,8:404,9:440,
+  10:480,11:520,12:565,13:610,14:655,15:705,16:755,17:805,18:860,19:915,
+  20:970,21:1030,22:1090,23:1150,24:1215};
+
+function levelOptions(table){
+  return Object.keys(table).map(l=>`<option value="${l}">Level ${l}</option>`).join('');
+}
+function maxLevel(table){ return Math.max(...Object.keys(table).map(Number)); }
+
+/* ---------- CARD DEFINITIONS ---------- */
+const items = [
+  {
+    id:'lightning', name:'Lightning Spell', tag:'Elixir Spell', accent:'var(--bolt)',
+    sub:'Flat damage in a small radius. Stuns briefly on hit.',
+    table:lightning, unit:'spell', qtyLabel:'Spells cast', qtyDefault:3,
+    calc(level, qty){
+      const dmg = lightning[level];
+      return { total: dmg*qty, lines:[`${qty} × Lv${level} (${dmg} dmg each)`] };
+    }
+  },
+  {
+    id:'earthquake', name:'Earthquake Spell', tag:'Dark Spell', accent:'var(--quake)',
+    sub:'% of max HP, with diminishing returns on repeats (1, 1/3, 1/5, 1/7…). 4 always break a Wall.',
+    table:earthquake, unit:'spell', qtyLabel:'Spells cast (same target)', qtyDefault:2,
+    calc(level, qty){
+      const pct = earthquake[level];
+      let totalPct = 0; const lines=[];
+      for(let n=1;n<=qty;n++){
+        const f = quakeFactor(n);
+        totalPct += pct*f;
+        lines.push(`Drop ${n}: ${(pct*f).toFixed(2)}% of max HP`);
+      }
+      return { total: totalPct, isPercent:true, lines };
+    }
+  },
+  {
+    id:'arrow', name:'Giant Arrow', tag:'AQ · Common Equipment', accent:'var(--arrow)',
+    sub:'One-shot pierce across the whole village. Double damage vs Air Defense.',
+    table:giantArrow, unit:'shot', qtyLabel:'Air Defenses in path (2× each)', qtyDefault:0,
+    calc(level, adCount){
+      const dmg = giantArrow[level];
+      const lines=[`Base shot: ${dmg} dmg`];
+      let total = dmg;
+      if(adCount>0){
+        const bonus = dmg*adCount; // extra hit equal to base dmg = doubled, per AD struck
+        total += bonus;
+        lines.push(`+${adCount} Air Defense(s) hit at 2× → +${bonus} dmg`);
+      }
+      return { total, lines };
+    }
+  },
+  {
+    id:'fireball', name:'Fireball', tag:'Grand Warden · Epic', accent:'var(--fireball)',
+    sub:'Splash nuke on the nearest defense. Largest AoE radius in the game at high levels.',
+    table:fireball, unit:'cast', qtyLabel:'Charges used (1 unless recharged)', qtyDefault:1,
+    calc(level, qty){
+      const dmg = fireball[level];
+      return { total: dmg*qty, lines:[`${qty} × Lv${level} (${dmg} dmg each)`] };
+    }
+  },
+  {
+    id:'backpack', name:'Rocket Backpack', tag:'Dragon Duke · Epic', accent:'var(--rocket)',
+    sub:'Duke dashes in a straight line, spitting flame; untargetable in flight. ~Approximate figures.',
+    table:rocketBackpack, unit:'dash', qtyLabel:'Uses this attack', qtyDefault:1,
+    calc(level, qty){
+      const dmg = rocketBackpack[level];
+      return { total: dmg*qty, lines:[`${qty} × Lv${level} (${dmg} dmg along path)`] };
+    }
+  },
+  {
+    id:'gauntlet', name:'Giant Gauntlet', tag:'Barbarian King · Epic ("Giant Ball")', accent:'var(--gauntlet)',
+    sub:'King grows huge, hits in AoE for the ability duration + self-heals. ~Approximate burst total.',
+    table:giantGauntlet, unit:'activation', qtyLabel:'Activations this attack', qtyDefault:1,
+    calc(level, qty){
+      const dmg = giantGauntlet[level];
+      return { total: dmg*qty, lines:[`${qty} × Lv${level} (~${dmg} AoE dmg over duration)`] };
+    }
+  },
+];
+
+/* ---------- BUILD UI ---------- */
+const grid = document.getElementById('cardGrid');
+const state = {};
+
+items.forEach(item=>{
+  state[item.id] = { on:true, level:maxLevel(item.table), qty:item.qtyDefault };
+
+  const card = document.createElement('div');
+  card.className='card';
+  card.style.setProperty('--accent', item.accent);
+  card.dataset.id = item.id;
+
+  card.innerHTML = `
+    <div class="toggle-row">
+      <div>
+        <h2>${item.name}</h2>
+        <div class="tag">${item.tag}</div>
+      </div>
+      <div class="switch on" data-role="toggle"><div class="knob"></div></div>
+    </div>
+    <div class="sub">${item.sub}</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Level</label>
+        <select data-role="level">${levelOptions(item.table)}</select>
+      </div>
+      <div class="field">
+        <label>${item.qtyLabel}</label>
+        <input type="number" min="0" data-role="qty" value="${item.qtyDefault}">
+      </div>
+    </div>
+    <div data-role="lines"></div>
+    <div class="stat-line total"><span>Subtotal</span><b data-role="subtotal">—</b></div>
+  `;
+  grid.appendChild(card);
+
+  const levelSel = card.querySelector('[data-role=level]');
+  levelSel.value = maxLevel(item.table);
+  const qtyInput = card.querySelector('[data-role=qty]');
+  const toggle = card.querySelector('[data-role=toggle]');
+
+  function sync(){
+    state[item.id].level = Number(levelSel.value);
+    state[item.id].qty = Number(qtyInput.value)||0;
+    render();
+  }
+  levelSel.addEventListener('change', sync);
+  qtyInput.addEventListener('input', sync);
+  toggle.addEventListener('click', ()=>{
+    state[item.id].on = !state[item.id].on;
+    toggle.classList.toggle('on', state[item.id].on);
+    card.classList.toggle('disabled', !state[item.id].on);
+    render();
+  });
+});
+
+/* ---------- RENDER ---------- */
+function render(){
+  let grandTotal = 0;
+  let percentNote = [];
+  const rows = [];
+
+  items.forEach(item=>{
+    const s = state[item.id];
+    const card = grid.querySelector(`[data-id="${item.id}"]`);
+    const linesEl = card.querySelector('[data-role=lines]');
+    const subtotalEl = card.querySelector('[data-role=subtotal]');
+
+    if(!s.on){
+      linesEl.innerHTML = '';
+      subtotalEl.textContent = '—';
+      return;
+    }
+
+    const result = item.calc(s.level, s.qty);
+    linesEl.innerHTML = result.lines.map(l=>`<div class="stat-line"><span>${l}</span></div>`).join('');
+
+    if(result.isPercent){
+      subtotalEl.textContent = `${result.total.toFixed(2)}% max HP`;
+      percentNote.push(`${item.name}: ${result.total.toFixed(2)}% of target's max HP (not added to flat total)`);
+      rows.push({item, detail:`${s.qty} spell(s), Lv${s.level}`, sub:`${result.total.toFixed(2)}%`, isPercent:true});
+    } else {
+      subtotalEl.textContent = `${Math.round(result.total).toLocaleString()} dmg`;
+      grandTotal += result.total;
+      rows.push({item, detail:`Lv${s.level} × ${s.qty}`, sub:Math.round(result.total).toLocaleString()});
+    }
+  });
+
+  document.getElementById('grandTotal').textContent = Math.round(grandTotal).toLocaleString();
+
+  const tbody = document.getElementById('breakdownBody');
+  if(rows.length===0){
+    tbody.innerHTML = `<tr><td colspan="3" style="color:var(--ink-dim);">Toggle an item above to see it here.</td></tr>`;
+  } else {
+    tbody.innerHTML = rows.map(r=>`
+      <tr>
+        <td><span class="swatch" style="background:${r.item.accent}"></span>${r.item.name}</td>
+        <td style="color:var(--ink-dim)">${r.detail}</td>
+        <td class="num">${r.sub}${r.isPercent?'':''}</td>
+      </tr>
+    `).join('');
+    if(percentNote.length){
+      tbody.innerHTML += `<tr><td colspan="3" style="color:var(--ink-dim); font-size:11.5px; font-style:italic; border-top:1px solid var(--line);">Earthquake % is HP-based and shown separately — apply it before totaling flat damage, since it works off max HP, not current.</td></tr>`;
+    }
+  }
+
+  // verdict against target HP
+  const hpInput = document.getElementById('targetHP');
+  const verdict = document.getElementById('verdict');
+  const hp = Number(hpInput.value);
+  if(hp>0){
+    let remaining = hp;
+    // apply earthquake % first (compounding against remaining HP isn't how the game works —
+    // quake % is always vs max HP — so subtract max-HP percentages first)
+    let quakeState = state['earthquake'];
+    if(quakeState.on){
+      const r = items.find(i=>i.id==='earthquake').calc(quakeState.level, quakeState.qty);
+      remaining -= hp * (r.total/100);
+    }
+    remaining -= grandTotal;
+    verdict.style.display='block';
+    if(remaining <= 0){
+      verdict.className='verdict';
+      verdict.textContent = `Lethal ✅ — this combo clears a ${hp.toLocaleString()} HP target with ${Math.abs(Math.round(remaining)).toLocaleString()} damage to spare.`;
+    } else {
+      verdict.className='verdict bad';
+      verdict.textContent = `Not quite ❌ — ${Math.round(remaining).toLocaleString()} HP would survive on a ${hp.toLocaleString()} HP target.`;
+    }
+  } else {
+    verdict.style.display='none';
+  }
+}
+
+document.getElementById('targetHP').addEventListener('input', render);
+
+render();
+</script>
+</body>
+</html>
